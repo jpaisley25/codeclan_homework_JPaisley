@@ -1,0 +1,146 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+Homework
+
+
+```{r}
+drinks_content <- drinks_content
+drinks_content
+dim(drinks_content)
+
+```
+
+Question 1.
+
+Load in the dataset and have a look at it. What are the dimensions, variable types, variable names, etc.?
+
+dimensions - 242 x 18
+variable types - character and double
+
+variable names
+
+```{r}
+names(drinks_content)
+```
+
+
+
+Question 2.
+
+Let’s first investigate the calories of different drinks. Select the variables Beverage_category, Beverage, Beverage prep and Calories from your data. Since we are interested in the calorie content, check if there are any NA values in the data, and drop them if there are.
+
+```{r}
+drinks_content_selected_variables <- drinks_content %>% 
+  select(Beverage_category, Beverage, Beverage_prep, Calories) %>% 
+  arrange(Calories)
+drinks_content_selected_variables
+
+## checking na
+
+skim(drinks_content_selected_variables)
+
+```
+
+
+No na values.
+
+
+
+Question 3.
+
+Create a new variable (column) called calorie_diff, which stores the difference between 135 calories (135 calories = 10 cubes of sugar!) and the calories in each drink. (hint: you’ll want to subtract 135 from the calories to see which drink have more or less than 10 cups of sugar).
+
+
+
+```{r}
+
+drinks_content_selected_variables <- drinks_content_selected_variables %>% 
+  mutate(calorie_diff = Calories - 135)
+
+drinks_content_selected_variables
+
+
+
+```
+
+
+
+
+Question 4.
+
+Summarise the mean number of calories in each beverage_category. Which 3 category of drinks have the most calories? Which 3 drinks have the least? Write a small summary of your findings.
+
+```{r}
+
+drinks_content_selected_variables %>% 
+  group_by(Beverage_category) %>% 
+  summarise(mean_calories_bev_cat = mean(Calories)) %>% 
+  arrange(mean_calories_bev_cat)
+  
+
+```
+
+The three beverage catagories with the fewest calories on average are Coffee, Shaken Iced Beverages and Classic Espresso Drinks.
+The three beverage categories with the most calories on average are Smoothies, Frappuccino Blaended Coffee, Signiture Espresso Drinks.
+
+
+
+
+Question 5.
+
+Let’s look at this a different way. What is the average number of calories in each Beverage_prep type?
+
+
+```{r}
+bev_prep_mean_cals <- drinks_content_selected_variables %>% 
+  group_by(Beverage_prep) %>% 
+  summarise(mean_calories_bev_prep = mean(Calories)) %>% 
+  arrange(mean_calories_bev_prep) 
+
+bev_prep_mean_cals
+  
+```
+
+
+
+
+Question 6.
+
+Which Beverage_prep type contains more than the average calories of all drinks?
+Hint
+
+```{r}
+
+
+
+mean_calories_all_drinks <- drinks_content_selected_variables %>% 
+  summarise(mean_calories = mean(Calories)) %>% 
+  pull(mean_calories)
+
+mean_calories_all_drinks
+
+
+
+```
+
+
+
+Question 7.
+
+Which is the best type of coffee drink (and by ‘drink’ we mean the combination of Beverage_category, Beverage and Beverage_prep) to get if you’re worried about consuming too many calories?
+
+```{r}
+drinks_content_selected_variables %>% 
+  filter(Beverage_category == "Coffee")
+
+
+
+
+```
+
+
+
+Short brewed coffee is the best type of coffee drink.
