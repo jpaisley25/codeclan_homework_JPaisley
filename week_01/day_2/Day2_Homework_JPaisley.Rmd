@@ -5,9 +5,19 @@ output: html_notebook
 
 Homework
 
+```{r}
+library("tidyverse")
+```
+
 
 ```{r}
-drinks_content <- drinks_content
+library(CodeClanData)
+```
+
+
+
+```{r}
+drinks_content <- drinks_content 
 drinks_content
 dim(drinks_content)
 
@@ -33,6 +43,9 @@ Question 2.
 Let’s first investigate the calories of different drinks. Select the variables Beverage_category, Beverage, Beverage prep and Calories from your data. Since we are interested in the calorie content, check if there are any NA values in the data, and drop them if there are.
 
 ```{r}
+library(skimr)
+
+
 drinks_content_selected_variables <- drinks_content %>% 
   select(Beverage_category, Beverage, Beverage_prep, Calories) %>% 
   arrange(Calories)
@@ -122,6 +135,8 @@ mean_calories_all_drinks <- drinks_content_selected_variables %>%
 
 mean_calories_all_drinks
 
+bev_prep_mean_cals %>% 
+  filter(mean_calories_bev_prep > mean_calories_all_drinks)
 
 
 ```
