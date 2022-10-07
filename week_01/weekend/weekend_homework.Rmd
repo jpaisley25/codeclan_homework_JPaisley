@@ -1,0 +1,281 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+```{r}
+library(tidyverse)
+library(skimr)
+```
+
+
+
+
+
+```{r}
+#load data
+
+books <- read_csv("data/books.csv")
+
+#investigate data set
+
+dim(books)
+names(books)
+head(books)
+
+
+```
+
+check for NAs
+
+```{r}
+books %>% 
+  summarise(
+    across(
+      .cols = everything(),
+      .fns = ~sum(is.na(.x))
+      )    
+    )
+
+
+```
+
+
+
+
+
+
+Find book/s with the highest average rating?
+
+```{r}
+books %>% 
+  select(title, authors, average_rating) %>% 
+  slice_max(average_rating)
+```
+
+Find the author/s with the highest mean_average_rating?
+```{r}
+books %>% 
+  select(authors, average_rating) %>% 
+  group_by(authors) %>% 
+  summarise(mean_average_rating = mean(average_rating)) %>% 
+  slice_max(mean_average_rating)
+```
+
+
+
+Find the top 5 authors with the highet mean average rating where the author has written more than 1 book?
+
+
+```{r}
+# same as before finding the mean_average_rating for each author
+
+authors_summary <- books %>% 
+  select(authors, average_rating, title) %>%
+  group_by(authors) %>% 
+  summarise(mean_average_rating = mean(average_rating))
+
+# get a vecotr containing the number of books written by each author
+
+n <- books %>% 
+  count(authors)  %>% 
+  pull(n)
+
+# add vector to the tibble, filter out anyone who has only written 1 book, show highest
+
+tibble(authors_summary, n) %>% 
+  filter(n > 1) %>% 
+  slice_max(mean_average_rating, n = 5)
+
+
+# must be a better way to do that
+
+books %>% 
+  select(authors, average_rating, title) %>%
+  mutate(books_written = 1) %>% 
+  group_by(authors) %>% 
+  mutate(books_written = sum(books_written)) %>%
+  filter(books_written > 1) %>% 
+  summarise(mean_average_rating = mean(average_rating)) %>% 
+  slice_max(mean_average_rating, n = 5)
+
+# way 3 - n()
+
+books %>% 
+  select(authors, average_rating, title) %>%
+  group_by(authors) %>% 
+  summarise(mean_average_rating = mean(average_rating), books_written = n()) %>%
+  filter(books_written > 1) %>% 
+  slice_max(mean_average_rating, n = 5)
+
+
+```
+
+Create a book grade column for each 0-1,1-2,2-3,3-4,4-5? How many books are in each grade?
+
+
+```{r}
+
+books %>%
+  select(title, authors, average_rating) %>% 
+  mutate(book_grade =
+           case_when(
+             average_rating > 4 ~ "Classic",
+             average_rating > 3 ~ "Quality",
+             average_rating > 2 ~ "Average",
+             average_rating > 1 ~ "Bad",
+             TRUE ~ "Kindling"
+             ) 
+  ) %>% 
+  group_by(book_grade) %>% 
+  count(book_grade)
+
+# adjust grades as 4000+ classic seems too much
+
+# get mean rating of all books to benchmark average - could also do it with median
+
+mean_rating_all_books <- books %>% 
+  summarise(average_rating = mean(average_rating)) %>% 
+  pull()
+
+books %>%
+  select(title, authors, average_rating) %>% 
+  mutate(book_grade =
+           case_when(
+             average_rating > 4.6 ~ "Classic",
+             average_rating > (mean_rating_all_books + 0.5)  ~ "Quality",
+             average_rating > (mean_rating_all_books + 0.25) ~ "Decent",
+             average_rating > mean_rating_all_books - 0.25 ~ "Average",
+             average_rating > 1 ~ "Bad",
+             TRUE ~ "Kindling"
+             ) 
+  ) %>% 
+  group_by(book_grade) %>% 
+  summarise(mean_average_rating = mean(average_rating), number = n()) %>% 
+  arrange(desc(mean_average_rating))
+
+
+```
+
+
+
+
+Check the amount of ratings for each book!
+
+
+
+```{r}
+books %>% 
+  select(title, authors, average_rating, ratings_count, text_reviews_count) %>% 
+  filter(ratings_count < 25 & text_reviews_count < 25) %>% 
+  arrange(ratings_count)
+
+# 1270 books with a low amount of ratings remove these and redo above analysis
+```
+
+
+
+```{r}
+
+books_filtered <- books %>% 
+  select(title, authors, average_rating, ratings_count, text_reviews_count) %>% 
+  filter(ratings_count > 25 & text_reviews_count > 25) %>% 
+  arrange(ratings_count)
+
+
+
+mean_rating_all_books <- books_filtered %>% 
+  summarise(average_rating = mean(average_rating)) %>% 
+  pull()
+
+books_filtered %>%
+  select(title, authors, average_rating) %>% 
+  mutate(book_grade =
+           case_when(
+             average_rating > 4.6 ~ "Classic",
+             average_rating > (mean_rating_all_books + 0.5)  ~ "Quality",
+             average_rating > (mean_rating_all_books + 0.25) ~ "Decent",
+             average_rating > mean_rating_all_books - 0.25 ~ "Average",
+             average_rating > 1 ~ "Bad",
+             TRUE ~ "Kindling"
+             ) 
+  ) %>% 
+  group_by(book_grade) %>% 
+  summarise(mean_average_rating = mean(average_rating), number = n()) %>% 
+  arrange(desc(mean_average_rating))
+
+#top authors
+
+
+books_filtered %>% 
+  select(authors, average_rating, title) %>%
+  group_by(authors) %>% 
+  summarise(mean_average_rating = mean(average_rating), books_written = n()) %>%
+  slice_max(mean_average_rating, n = 10)
+
+
+#top authors - multiple books
+
+
+books_filtered %>% 
+  select(authors, average_rating, title) %>%
+  group_by(authors) %>% 
+  summarise(mean_average_rating = mean(average_rating), books_written = n()) %>%
+  filter(books_written > 1) %>% 
+  slice_max(mean_average_rating, n = 10)
+
+#top books
+
+books_filtered %>% 
+  select(title, authors, average_rating) %>% 
+  slice_max(average_rating, n = 10)
+```
+
+
+```{r}
+
+# top rated books by unique authors
+
+books_filtered %>% 
+  group_by(authors) %>% 
+  slice_max(average_rating) %>% 
+  ungroup() %>% 
+  slice_max(average_rating, n = 10)
+
+
+# the top rated authors top rated book
+
+books_filtered %>% 
+  group_by(authors) %>% 
+  mutate(mean_average_rating = mean(average_rating)) %>%
+  slice_max(average_rating, n = 1) %>%
+  ungroup() %>% 
+  slice_max(mean_average_rating, n = 10)
+
+# the top rated authors (with more than 1 book) top rated book
+
+books_filtered %>% 
+  group_by(authors) %>% 
+  mutate(mean_average_rating = mean(average_rating),
+         books_written = n()) %>%
+  slice_max(average_rating, n = 1) %>%
+  ungroup() %>% 
+  filter(books_written > 1) %>% 
+  slice_max(mean_average_rating, n = 10)
+
+
+
+```
+
+
+
+
+```{r}
+books_filtered %>% 
+  filter(authors == "Leo Tolstoy")
+```
+
+
+
+
+
