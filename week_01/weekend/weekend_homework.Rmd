@@ -268,12 +268,61 @@ books_filtered %>%
 ```
 
 
-
+Filter books by leo tolstoy
 
 ```{r}
 books_filtered %>% 
   filter(authors == "Leo Tolstoy")
 ```
+
+
+Distinct languages
+
+```{r}
+books %>% 
+  count(language_code)
+
+
+#top spanish language book
+
+
+books %>% 
+  filter(ratings_count > 5 & text_reviews_count > 5 & language_code == "spa") %>% 
+  slice_max(average_rating)
+
+# harry potter translation
+
+```
+
+
+Book that was the most above an authors mean average rating
+
+```{r}
+books_filtered %>%
+  group_by(authors) %>% 
+  mutate(mean_average_rating = mean(average_rating),
+         dif_to_mean = average_rating - mean_average_rating) %>% 
+  ungroup() %>% 
+  slice_max(dif_to_mean)
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
