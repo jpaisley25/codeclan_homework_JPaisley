@@ -115,7 +115,7 @@ Find the mean number of characters that a CodeClan tweet contains.  You can eith
 ```{r}
 tweets
 
-nchar("what1")
+nchar("what 1")
 
 tweets %>%
   arrange(display_text_width) %>%
@@ -222,14 +222,28 @@ Think about all the different characters which could be in a Twitter username, d
 tweets %>% 
   select(text) %>% 
   mutate(text = str_to_lower(text)) %>%
-  mutate(text = str_extract_all(text, "@[a-z[:punct:]]+")) %>% 
+  mutate(text = str_extract_all(text, "@[a-z0-9_]+")) %>% 
   pull(text) %>% 
   flatten_chr() %>% 
   tibble() %>% 
   rename("users" =".")
 
+tweets %>% 
+  select(text) %>% 
+  mutate(text = str_to_lower(text)) %>%
+  mutate(text = str_extract_all(text, "@[a-z0-9_]+")) %>% 
+  unnest(cols = c(text)) %>% 
+  group_by(text) %>% 
+  summarise(mentions = n())
 
+# probably shouldnt change to lower case if you actually wanted to use th e twitter handles.
 
+tweets %>%
+  select(text) %>%
+  mutate(user_tweeeted = str_extract_all(text, "@[A-z0-9_]+")) %>%
+  unnest(cols = c(user_tweeeted)) %>%
+  group_by(user_tweeeted) %>%
+  summarise(count = n())
 
 ```
 
