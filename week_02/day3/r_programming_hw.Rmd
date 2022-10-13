@@ -101,7 +101,7 @@ my_function <- function(x){
   }
 }
 
-my_function(TRUE)
+my_function(42)
 
 
 
@@ -126,18 +126,18 @@ check_vectors <- function(x, y){
   if(length(x) == length(y)){
     if(all(x == y)){
       print("Exactly the same")
-} else{
-    x <- sort(x)
-    y <- sort(y)
-    if(all(x == y)){
-      print("The same")
     } else{
-      print("Different")
+      x <- sort(x)
+      y <- sort(y)
+      if(all(x == y)){
+        print("The same")
+      } else{
+        print("Different")
+      }
     }
-  }
-} else{
+  } else{
     print("Different")
-}
+  }
 }
 
 
@@ -170,11 +170,11 @@ Write code that prints a multiplication table for numbers up to 12. i.e. there w
 
 get_times_table_matrix <- function(n){
   y <- c()
-    for(i in 1:n) {
-      x <- i * (1:n)
-      y <- c(y, x)
-}
-matrix(y, nrow = n)
+  for(i in 1:n) {
+    x <- i * (1:n)
+    y <- c(y, x)
+  }
+  matrix(y, nrow = n)
 }
 
 get_times_table_matrix(12)
