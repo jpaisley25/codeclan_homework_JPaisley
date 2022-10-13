@@ -118,7 +118,9 @@ Write a function which checks if two vectors have the same elements.
 ```{r}
 
 x <- c(1, 2, 3)
-y <- c(1, 4, 3)
+y <- c(1, 3, 2)
+z <- c(1, 2, 3)
+a <- c(5, 6, 7)
 
 
 
@@ -143,6 +145,8 @@ check_vectors <- function(x, y){
 
 
 check_vectors(x, y) 
+check_vectors(x, z)
+check_vectors(x, a) 
 ```
 
 
