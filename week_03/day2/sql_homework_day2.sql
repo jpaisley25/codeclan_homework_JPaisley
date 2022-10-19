@@ -137,7 +137,7 @@ GROUP BY (team_name, e.team_id)
 HAVING sum(cast(t.charge_cost AS int)) > 5000
 ORDER BY total_day_charge ASC NULLS LAST;
 
-
+-- Extension Q5
 
 SELECT 
     count(DISTINCT  e.id) 
@@ -145,6 +145,7 @@ FROM employees AS e
 inner JOIN employees_committees  AS e_c 
 ON e.id = e_c.employee_id;
 
+-- Extension Q6
 
 SELECT 
     count(*) 
