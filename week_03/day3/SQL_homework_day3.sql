@@ -32,7 +32,7 @@ LIMIT 10;
 
 SELECT 
     department, 
-    count(*) AS 
+    count(*) AS count
 FROM employees
 WHERE start_date BETWEEN '2003-01-01' AND '2003-12-31'
 GROUP BY department;
