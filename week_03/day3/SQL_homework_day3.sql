@@ -79,6 +79,7 @@ SELECT
     avg(salary) AS avg_salary
 FROM employees
 GROUP BY country
+HAVING count(*) > 30
 ORDER BY avg_salary DESC NULLs LAST; 
 
 
@@ -288,9 +289,11 @@ ORDER BY start_date ASC NULLS LAST;
 -- Q4
 
 WITH salary_classes(
+                    id,
                     salary,
                     salary_class) AS ( 
     SELECT 
+    e.id,
     e.salary,
     CASE 
         WHEN salary < 40000 THEN 'low'
@@ -302,7 +305,7 @@ ON e.id = e_c.employee_id
 )
 SELECT
     salary_class,
-    count(*)
+    count(DISTINCT(id))
 FROM salary_classes 
 GROUP BY salary_classes.salary_class;
 
