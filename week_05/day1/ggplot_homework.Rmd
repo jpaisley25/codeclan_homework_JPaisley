@@ -167,8 +167,21 @@ qb_device_data %>%
   facet_wrap(~id + device, nrow = 5) +
   homework_theme +
   scale_colour_manual(values = c("#E89FE9", "#50434F", "#B6A7B5", "#F9A472"))
+
+qb_device_data %>%
+  group_by(id, device) %>% 
+  mutate(time = c(1:n())) %>% 
+  ungroup() %>%
+  ggplot(aes(x = time, y = counts, colour = device)) +
+  geom_line() +
+  facet_grid(id ~ device) +
+  homework_theme +
+  scale_colour_manual(values = c("#E89FE9", "#50434F", "#B6A7B5", "#F9A472"))
   
 qb_device_data 
+
+
+?cumsum
  
 ```
 
