@@ -1,0 +1,87 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+```{r}
+library(tidyverse)
+library(CodeClanData)
+
+jamie_theme <- theme(panel.background = element_rect(fill = "white"),
+                     panel.grid = element_line(colour = "#ededed"),
+                     strip.background = element_rect(fill = "white")
+                        ) 
+```
+
+
+```{r}
+game_sales
+```
+
+
+
+```{r}
+game_sales %>% 
+  group_by(platform) %>% 
+  summarise(platform_total_sales = sum(sales)) %>% 
+  ggplot() +
+  geom_col(aes(x = platform, y = platform_total_sales), fill = "darkseagreen4") +
+  jamie_theme +
+  labs(x = "Platform", y = "Total Game Sales (millions)", title = "Total Game Sales for Each Platform") +
+  coord_flip()
+
+game_sales %>% 
+  group_by(publisher) %>% 
+  summarise(publisher_total_sales = sum(sales)) %>% 
+  ggplot() +
+  geom_col(aes(x = publisher, y = publisher_total_sales), fill = "chocolate4") +
+  jamie_theme +
+  labs(x = "Publisher", y = "Total Game Sales (millions)", title = "Total Game Sales for Each Publisher") +
+  coord_flip()
+
+game_sales %>% 
+  group_by(genre) %>% 
+  summarise(genre_total_sales = sum(sales)) %>% 
+  ggplot() +
+  geom_col(aes(x = genre, y = genre_total_sales), fill = "brown3") +
+  jamie_theme +
+  labs(x = "Genre", y = "Total Game Sales (millions)", title = "Total Game Sales for Each Genre") +
+  coord_flip()
+```
+
+
+
+```{r}
+game_sales %>% 
+  select(platform) %>% 
+  rename("x" = "platform")
+```
+
+```{r}
+
+game_sales %>% 
+  sample_n(1)
+
+?geom_smooth
+
+```
+
+```{r}
+game_sales %>% 
+  count(across({{"developer"}}))
+```
+
+```{r}
+game_sales %>% 
+  filter(year_of_release != 1988) %>% 
+  group_by(year_of_release, genre) %>% 
+  summarise(avg_user_score = mean(user_score),
+            avg_critic_score = mean(critic_score)) %>% 
+  ungroup() %>% 
+  ggplot(aes(x = year_of_release, y = avg_user_score, colour = genre)) +
+  geom_point() +
+  geom_smooth(method = "lm", se = FALSE)
+
+?geom_smooth
+```
+
