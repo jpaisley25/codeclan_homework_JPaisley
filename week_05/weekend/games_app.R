@@ -33,7 +33,7 @@ ui <- fluidPage(
     tabPanel(# second tab shows user a graph of average game rating vs
              # year of release. The user can use the layered inputs to 
              # customize the graph in a variety of ways
-      "Genre Scores Over Time",
+      "Scores Over Time",
              radioButtons(
                inputId = "score",
                label = "Critic or User Score?",
@@ -54,7 +54,7 @@ ui <- fluidPage(
              ),
              selectInput(
                inputId = "genre",
-               label = "Genre (can pick more than 1):",
+               label = "Filter (can pick more than 1):",
                choices = "default",
                multiple = TRUE
                ),
