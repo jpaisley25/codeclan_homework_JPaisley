@@ -106,7 +106,7 @@ server <- function(input, output, session) {
       ggplot() +
       geom_col(aes(x = x, y = y, fill = x)) +
       jamie_theme +
-      labs(x = input$category, y = "Total Game Sales (millions)", title = paste("Total game dales for each", input$category)) +
+      labs(x = input$category, y = "Total Game Sales (millions)", title = paste("Total game sales for each", input$category)) +
       coord_flip() +
       theme(axis.text = element_text(size = 12),
             legend.text = element_text(size = 11),
