@@ -1,0 +1,100 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+```{r}
+library(tidyverse)
+library(janitor)
+source(here::here("prob.R"))
+```
+
+
+
+```{r}
+titanic_data <- read_csv(here::here("data/titanic.csv"))
+```
+
+
+
+```{r}
+titanic_data_2 <- titanic_data %>% 
+  select(class, survived) %>% 
+  mutate(class = case_when(
+    class %in% c("3rd", "2nd", "1st") ~ "passenger",
+    TRUE ~ "staff"
+  )
+  )
+
+
+prob_survived_passenger <- titanic_data_2 %>% 
+  filter(class == "passenger") %>% 
+  summarise(prob = sum(survived == "yes") / n())
+
+prob_survived_passenger
+  
+prob_survived_staff <- titanic_data_2 %>% 
+  filter(class == "staff") %>% 
+  summarise(prob = sum(survived == "yes") / n())
+
+prob_survived_staff
+
+
+# passengers more likely to survive 
+```
+
+
+
+```{r}
+rolldie(3)
+
+6^3
+```
+
+```{r}
+roll_dice_4 <- rolldie(4) %>% 
+  mutate(total = rowSums(.))
+
+# 5, 6, 7
+
+five_six_seven <- roll_dice_4 %>% 
+  filter(total %in% c("5", "6", "7")) %>% 
+  count()
+
+prob <- pull(five_six_seven) / pull(count(roll_dice_4))
+prob
+
+
+
+```
+
+
+
+```{r}
+# number of different orders is 5!
+# that order is 1 order so prob is 
+
+1 / factorial(5)
+
+```
+
+
+
+```{r}
+
+
+1 / nrow(rolldie(6))
+
+(1/6)^6
+
+
+
+factorial(6) / nrow(rolldie(6))
+
+
+```
+
+```{r}
+#half
+```
+
