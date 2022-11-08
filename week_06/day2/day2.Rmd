@@ -1,0 +1,100 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+```{r}
+library(tidyverse)
+library(janitor)
+library(e1071)
+```
+
+
+
+```{r}
+items <- read_csv(here::here("data/20190928-items.csv")) %>% 
+  clean_names()
+```
+
+
+
+```{r}
+brand_with_most_phones <- items %>% 
+  count(brand) %>% 
+  slice_max(n, n = 1) %>% 
+  pull(brand)
+
+brand_with_most_phones
+```
+
+```{r}
+samsung <- items %>% 
+  filter(brand == brand_with_most_phones)
+
+
+mean_rating <- samsung %>%
+  summarise(mean_rating = mean(rating)) %>% 
+  pull()
+
+sd_rating <- samsung %>% 
+  summarise(sd_rating = sd(rating)) %>% 
+  pull()
+
+
+samsung %>% 
+  ggplot() +
+  geom_histogram(aes(x = rating, y = ..density..)) +
+  stat_function(
+    fun = dnorm,
+    args = list(
+      mean = mean_rating,
+      sd = sd_rating
+    )
+  )
+
+# I dont think it is a particularly great fit
+```
+
+
+
+
+```{r}
+# sigma1 68#5, sigma2 95%, sigma3 99.7%
+
+samsung %>% 
+  select(rating) %>% 
+  mutate(z_rating = scale(rating)) %>% 
+  mutate(sigma1 = if_else(abs(z_rating) <= 1, TRUE, FALSE ),
+         sigma2 = if_else(abs(z_rating) <= 2, TRUE, FALSE ),
+         sigma3 = if_else(abs(z_rating) <= 3, TRUE, FALSE )
+         ) %>% 
+  summarise(
+    within_1 = sum(sigma1) / n(),
+    within_2 = sum(sigma2) / n(),
+    within_3 = sum(sigma3) / n(),
+  )
+
+samsung %>%
+  filter(rating >= mean_rating - sd_rating) %>%
+  filter(rating <= mean_rating + sd_rating) %>%
+  summarise(prop_within_1sd = n() / nrow(samsung))
+
+
+# numbers are off by quite a bit showing that this is not a normal dist
+
+
+```
+
+
+
+```{r}
+
+qqnorm(samsung$rating); qqline(samsung$rating)
+
+x = rnorm(n = 100, mean = 0, sd = 1)
+
+qqnorm(x); qqline(x)
+
+
+```
+
