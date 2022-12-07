@@ -28,6 +28,8 @@ library(GGally)
 library(ggfortify)
 library(mosaic)
 library(mosaicData)
+library(leaflet)
+library(raster)
 ```
 
 1. Load the `housing_prices.csv` data set and undertake an initial exploration of the data. You will find details on the data set on the relevant [Kaggle page](https://www.kaggle.com/camnugent/california-housing-prices)
@@ -181,5 +183,105 @@ plot(lm3)
 ```{r}
 mod3 <- lm(log(median_house_value) ~ log(median_income) + ocean_proximity + log(median_income):ocean_proximity, data = housing_data)
 summary(mod3)
+```
+
+```{r}
+housing_data_2 <- housing_data %>% 
+  mutate(rooms_per_household = total_rooms / households,
+         bedrooms_per_room = total_bedrooms / total_rooms,
+         people_per_house = population / households,
+         bedrooms_per_person = total_bedrooms / population) %>% 
+  select(median_house_value, median_income ,rooms_per_household, bedrooms_per_room, bedrooms_per_person, people_per_house, ocean_proximity)
+  
+  
+ggpairs(housing_data_2)
+
+
+```
+
+
+
+```{r}
+lm7 <- lm(median_house_value ~ median_income + bedrooms_per_room + ocean_proximity + median_income:bedrooms_per_room + median_income:ocean_proximity, housing_data_2)
+summary(lm7)
+
+plot(lm7)
+```
+
+```{r}
+housing_data %>% 
+  dplyr::select(longitude, latitude, housing_median_age) 
+
+
+raster <- rasterFromXYZ(housing_data %>% 
+  dplyr::select(longitude, latitude, median_house_value), crs = "+proj=longlat +ellps=WGS84 +datum=WGS84 +no_defs")
+
+plot(raster)
+
+?rasterFromXYZ
+```
+
+```{r}
+
+
+housing_data %>% 
+  group_by(longitude, latitude) %>% 
+  mutate(mean_median_house_value = mean(median_house_value))
+
+#library(raster)
+#library(leaflet)
+
+raster <- rasterFromXYZ(housing_data %>% 
+  dplyr::select(longitude, latitude, median_house_value), crs = "+proj=longlat +ellps=WGS84 +datum=WGS84 +no_defs")
+
+pal <- colorNumeric(c("blue", "red", "yellow"), values(raster),
+  na.color = "transparent")
+
+plot(raster)
+
+leaflet() %>% 
+  addTiles() %>% 
+  addRasterImage(raster, colors = pal, opacity = 0.7) %>% 
+  addLegend(pal = pal, values = values(raster),
+    title = "Median House Value")
+
+
+
+raster <- rasterFromXYZ(housing_data %>% 
+  group_by(longitude, latitude) %>% 
+  summarise(mean_median_house_value = mean(median_house_value)) %>%  
+  dplyr::select(longitude, latitude, mean_median_house_value), crs = "+proj=longlat +ellps=WGS84 +datum=WGS84 +no_defs")
+
+pal <- colorNumeric(c("blue", "red", "yellow"), values(raster),
+  na.color = "transparent")
+
+plot(raster)
+
+leaflet() %>% 
+  addTiles() %>% 
+  addRasterImage(raster, colors = pal, opacity = 0.7) %>% 
+  addLegend(pal = pal, values = values(raster),
+    title = "Median House Value")
+
+
+```
+
+```{r}
+lm7 <- lm(median_house_value ~ ocean_proximity + median_income, housing_data)
+summary(lm7)
+plotModel(lm7)
+
+lm8 <- lm(median_house_value ~ median_income +  ocean_proximity, housing_data)
+summary(lm8)
+plotModel(lm8)
+```
+
+```{r}
+df <- data.frame( x = rep( 0:1, each=4 ),
+                  y = rep( 0:1,  4),
+                  l = rnorm( 4 ))
+df
+dfr <- rasterFromXYZ(df)  #Convert first two columns as lon-lat and third as value                
+ plot(dfr)
 ```
 
