@@ -1,0 +1,185 @@
+---
+title: "Homework - features and elements of multiple regression"
+output:
+  html_document:
+    toc: true
+    toc_float: true
+    number_sections: true
+    df_print: paged
+    css: ../../../styles.css
+  pdf_document: default
+---
+
+```{r setup, include=FALSE}
+library(tidyverse)
+knitr::opts_chunk$set(echo = TRUE, fig.align = 'center')
+```
+
+<hr>
+
+# MVP
+
+
+```{r}
+library(tidyverse)
+library(janitor)
+library(fastDummies)
+library(GGally)
+library(ggfortify)
+library(mosaic)
+library(mosaicData)
+```
+
+1. Load the `housing_prices.csv` data set and undertake an initial exploration of the data. You will find details on the data set on the relevant [Kaggle page](https://www.kaggle.com/camnugent/california-housing-prices)
+
+```{r}
+housing_data <- read_csv(here::here("day2/data/housing_prices.csv"))
+housing_data
+```
+
+
+2. We expect the `total_rooms` of houses to be strongly correlated with `total_bedrooms`. Use `ggpairs()` to investigate correlations between these two variables.
+
+```{r}
+housing_data %>% 
+  select(total_rooms, total_bedrooms) %>% 
+  ggpairs()
+
+
+# yes strong positive correlation
+
+
+```
+ 
+
+3. So, we do find significant correlations. Let's drop `total_bedrooms` from the dataset, and use only `total_rooms` going forward.
+
+```{r}
+housing_data <- housing_data %>% 
+  select(-total_bedrooms)
+```
+
+
+
+4. We are interested in developing a regression model for the `median_house_value` of a house in terms of the possible predictor variables in the dataset. 
+
+  i. Use `ggpairs()` to investigate correlations between `median_house_value` and the predictors (this may take a while to run, don't worry, make coffee or something).
+
+  ii. Perform further `ggplot` visualisations of any significant correlations you find.
+
+```{r}
+housing_data %>% 
+  ggpairs()
+```
+
+```{r}
+housing_data %>% 
+  ggplot(aes(x = median_income, y = median_house_value)) +
+  geom_point() +
+  geom_smooth(method = "lm", se = FALSE)
+
+# strongest correlation with median house price is median income
+```
+
+
+
+5. Shortly we may try a regression model to fit the categorical predictor `ocean_proximity`. Investigate the level of `ocean_proximity` predictors. How many dummy variables do you expect to get from it?
+    
+
+```{r}
+housing_data %>% 
+  distinct(ocean_proximity) 
+
+#4 with dummy encoding
+```
+
+
+6. Start with simple linear regression. Regress `median_house_value` on `median_income` and check the regression diagnostics.
+
+```{r}
+housing_data %>% 
+  ggplot(aes(x = median_income, y = median_house_value)) +
+  geom_point() +
+  geom_smooth(method = "lm", se = FALSE)
+
+lm1 <- lm(median_house_value ~ median_income, housing_data)
+summary(lm1)
+plot(lm1)
+
+# residuals vs fitted is fine 
+# Normal - not good - std residuals are not normal
+# Scale location - not good - heteroscedasticity 
+```
+
+
+7. Add another predictor of your choice. Check your assumptions, diagnostics, and interpret the model.
+
+
+
+```{r}
+lm2 <- lm(median_house_value ~ median_income + total_rooms, housing_data)
+summary(lm2)
+plot(lm2)
+
+# adding total rooms made virtually no difference 
+```
+
+
+```{r}
+housing_data_ocean <- housing_data %>% 
+  select(median_house_value, median_income, ocean_proximity) %>% 
+  dummy_cols(select_columns = "ocean_proximity",
+                          remove_first_dummy = TRUE,
+                          remove_selected_columns = TRUE) %>% 
+  clean_names() %>% 
+  mutate(across(starts_with("ocean"), as.logical)) 
+
+lm2 <- lm(median_house_value ~ median_income + ocean_proximity_near_ocean + ocean_proximity_inland + ocean_proximity_island + ocean_proximity_near_bay, housing_data_ocean)
+summary(lm2)
+plot(lm2)
+
+plotModel(lm2)
+
+# same problems
+
+```
+
+
+# Extension
+    
+<br>
+
+8. Try adding an interaction between `log(median_income)` and your chosen categorical predictor. Do you think this interaction term is statistically justified?
+
+```{r}
+lm2 <- lm(log(median_house_value) ~ log(median_income) + ocean_proximity_near_ocean + log(median_income):ocean_proximity_near_ocean, housing_data_ocean)
+summary(lm2)
+plot(lm2)
+
+plotModel(lm2)
+
+# its worse and still fails the diagnostics test
+
+# is statistically significant for near ocean False, but nor for near Ocean TRUE
+```
+
+
+9. Find and plot an appropriate visualisation to show the effect of this interaction
+
+
+
+```{r}
+lm3 <- lm(log(median_house_value) ~ log(median_income) + ocean_proximity_near_ocean + ocean_proximity_inland + ocean_proximity_island + ocean_proximity_near_bay + log(median_income):ocean_proximity_near_ocean + log(median_income):ocean_proximity_inland + log(median_income):ocean_proximity_island + log(median_income):ocean_proximity_near_bay, housing_data_ocean)
+summary(lm3)
+plot(lm3)
+
+
+```
+
+
+
+```{r}
+mod3 <- lm(log(median_house_value) ~ log(median_income) + ocean_proximity + log(median_income):ocean_proximity, data = housing_data)
+summary(mod3)
+```
+
