@@ -1,0 +1,278 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+```{r}
+library(tidyverse)
+library(janitor)
+library(fastDummies)
+library(GGally)
+library(ggfortify)
+library(mosaic)
+library(mosaicData)
+library(modelr)
+library(relaimpo)
+```
+
+
+```{r}
+kc_house_data <- read_csv(here::here("day3/data/kc_house_data.csv"))
+```
+
+```{r}
+kc_house_clean <- kc_house_data %>% 
+  dplyr::select(-id, -date, -zipcode, -sqft_living15, -sqft_lot15, -sqft_above) %>% 
+  mutate(across(c(view, condition, grade), as.factor),
+         yr_renovated = as.logical(yr_renovated),
+         waterfront = as.logical(waterfront)) 
+
+
+
+ 
+ skimr::skim(kc_house_clean)
+
+
+alias(lm(price ~ ., data = kc_house_clean))
+ 
+# only alias is sqrft above - drop
+
+```
+
+```{r}
+kc_house_clean
+
+ggpairs(kc_house_clean %>% dplyr::select(price, 2:5))
+
+ggpairs(kc_house_clean %>% dplyr::select(price, 6:9))
+
+ggpairs(kc_house_clean %>% dplyr::select(price, 10:12))
+
+ggpairs(kc_house_clean %>% dplyr::select(price, 13:15))
+
+# strongest correlation is price to sqft living so I will start there 
+
+```
+
+
+```{r}
+lm1a <- lm(price ~ sqft_living, kc_house_clean)
+summary(lm1a)
+plotModel(lm1a)
+plot(lm1a)
+
+
+
+#r2 0.5 not a bad start
+
+# diagnostic plts bad - skewed so look at log transform of price
+
+lm1b <- lm(log(1 + price) ~ sqft_living, kc_house_clean)
+summary(lm1b)
+plot(lm1b)
+
+
+# r2 slightly worse 
+# diagnostics better 
+
+```
+
+
+```{r}
+kc_house_resid <- kc_house_clean %>% 
+  add_residuals(lm1b) %>% 
+  dplyr::select(-price, -sqft_living) %>% 
+  dplyr::select(resid, everything()) 
+
+kc_house_resid %>% 
+  dplyr::select(resid, 2:5) %>% 
+  ggpairs()
+kc_house_resid %>% 
+  dplyr::select(resid, 6:8) %>% 
+  ggpairs()
+kc_house_resid %>% 
+  dplyr::select(resid, 9:11) %>% 
+  ggpairs()
+kc_house_resid %>% 
+  dplyr::select(resid, 12:14) %>% 
+  ggpairs()
+
+
+# latitude most strongly corelated to residuals so i'll add that next
+```
+
+
+
+```{r}
+lm2a <- lm(log(1 + price) ~ sqft_living + lat, kc_house_clean)
+summary(lm2a)
+plot(lm2a)
+
+
+#big improvement to r
+#hetroskedastic and not normal
+```
+
+```{r}
+kc_house_resid <- kc_house_clean %>% 
+  add_residuals(lm2a) %>% 
+  dplyr::select(-price, -sqft_living, -lat) %>% 
+  dplyr::select(resid, everything()) 
+
+kc_house_resid %>% 
+  dplyr::select(resid, 2:5) %>% 
+  ggpairs()
+kc_house_resid %>% 
+  dplyr::select(resid, 6:8) %>% 
+  ggpairs()
+kc_house_resid %>% 
+  dplyr::select(resid, 9:11) %>% 
+  ggpairs()
+kc_house_resid %>% 
+  dplyr::select(resid, 12:13) %>% 
+  ggpairs()
+
+
+# waterfront looks quite different i'll try that
+```
+
+
+```{r}
+lm3a <- lm(log(1 + price) ~ sqft_living + lat + yr_built, kc_house_clean)
+summary(lm3a)
+plot(lm3a)
+```
+
+```{r}
+kc_house_resid <- kc_house_clean %>% 
+  add_residuals(lm3a) %>% 
+  dplyr::select(-price, -sqft_living, -lat, -yr_built) %>% 
+  dplyr::select(resid, everything()) 
+
+kc_house_resid %>% 
+  dplyr::select(resid, 2:4) %>% 
+  ggpairs()
+kc_house_resid %>% 
+  dplyr::select(resid, 5:7) %>% 
+  ggpairs()
+kc_house_resid %>% 
+  dplyr::select(resid, 8:10) %>% 
+  ggpairs()
+kc_house_resid %>% 
+  dplyr::select(resid, 11:12) %>% 
+  ggpairs()
+
+# best categorical to use is grade as mpost of the others have the majority of entries in 1 of the conditions meaning the effect will be small
+
+```
+
+```{r}
+lm4a <- lm(log(1 + price) ~ sqft_living + lat + yr_built + grade, kc_house_clean)
+summary(lm4a)
+plot(lm4a)
+
+# looks pretty good
+# diagnostics could be a bit better 
+```
+
+```{r}
+# check model 4 against 3 using anova
+
+anova(lm3a, lm4a)
+
+# statistically significant yeehaw
+```
+
+```{r}
+# interactions
+
+kc_house_resid <- kc_house_clean %>% 
+  add_residuals(lm4a)
+
+#check this int 
+kc_house_resid %>% 
+  ggplot(aes(sqft_living, resid, colour = grade)) +
+  geom_point() +
+  geom_smooth(method = "lm", se = FALSE)
+
+kc_house_resid %>% 
+  ggplot(aes(lat, resid, colour = grade)) +
+  geom_point() +
+  geom_smooth(method = "lm", se = FALSE)
+
+#check this int
+kc_house_resid %>% 
+  ggplot(aes(yr_built, resid, colour = grade)) +
+  geom_point() +
+  geom_smooth(method = "lm", se = FALSE)
+
+```
+
+```{r}
+
+#check this int
+coplot(resid ~ sqft_living | lat,
+       panel = function(x, y, ...){
+         points(x, y)
+         abline(lm(y ~ x), col = "blue")
+       },
+       data = kc_house_resid, rows = 1)
+
+
+#check this int
+coplot(resid ~ sqft_living | yr_built,
+       panel = function(x, y, ...){
+         points(x, y)
+         abline(lm(y ~ x), col = "blue")
+       },
+       data = kc_house_resid, rows = 1)
+
+coplot(resid ~ lat | sqft_living,
+       panel = function(x, y, ...){
+         points(x, y)
+         abline(lm(y ~ x), col = "blue")
+       },
+       data = kc_house_resid, rows = 1)
+
+coplot(resid ~ lat | yr_built,
+       panel = function(x, y, ...){
+         points(x, y)
+         abline(lm(y ~ x), col = "blue")
+       },
+       data = kc_house_resid, rows = 1)
+#check
+coplot(resid ~ yr_built | lat,
+       panel = function(x, y, ...){
+         points(x, y)
+         abline(lm(y ~ x), col = "blue")
+       },
+       data = kc_house_resid, rows = 1)
+
+coplot(resid ~ yr_built | sqft_living,
+       panel = function(x, y, ...){
+         points(x, y)
+         abline(lm(y ~ x), col = "blue")
+       },
+       data = kc_house_resid, rows = 1)
+```
+
+
+```{r}
+lm5a <- lm(log(1 + price) ~ sqft_living + lat + yr_built + grade + yr_built:lat, kc_house_clean)
+summary(lm5a)
+plot(lm5a)
+
+#yr_built:lat is the best although the improvement is minor
+
+```
+
+
+
+```{r}
+calc.relimp(lm4a, type = "lmg", rela = TRUE)
+
+#grade, sqft_living, lat, yr_built
+```
+
+
+
