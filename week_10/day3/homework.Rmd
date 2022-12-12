@@ -264,6 +264,10 @@ plot(lm5a)
 
 #yr_built:lat is the best although the improvement is minor
 
+lm5a <- lm(log(1 + price) ~ ., kc_house_clean)
+summary(lm5a)
+plot(lm5a)
+
 ```
 
 

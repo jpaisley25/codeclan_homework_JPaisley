@@ -1,0 +1,601 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+```{r}
+library(tidyverse)
+library(lubridate)
+library(janitor)
+library(caret)
+library(broom)
+library(fastDummies)
+library(GGally)
+library(ggfortify)
+library(mosaic)
+library(mosaicData)
+library(modelr)
+library(relaimpo)
+library(tidyverse)
+library(glmulti)
+```
+
+```{r}
+avocados <- read_csv(here::here("weekend/data/avocado.csv")) %>% clean_names()
+```
+
+```{r}
+avocados %>%
+  distinct(region)
+
+avocados %>% 
+  filter(region == "TotalUS",
+         date == "2015-12-27")
+
+avocados %>% 
+  filter(region %in% c("Midsouth", "Northeast", "Plains", "SouthCentral", "Southeast", "West", "GreatLakes", "California"),
+         date == "2015-12-27") %>% 
+  group_by(type) %>% 
+  summarise(total_volume = sum(total_volume),
+            x4046 = sum(x4046),
+            total_bags = sum(total_bags))
+
+avocados %>% 
+  filter(!region %in% c("TotalUS", "Midsouth", "Northeast", "Plains", "SouthCentral", "Southeast", "West", "GreatLakes", "California"),
+         date == "2015-12-27") %>% 
+  group_by(type) %>% 
+  summarise(total_volume = sum(total_volume),
+            x4046 = sum(x4046),
+            total_bags = sum(total_bags))
+
+# Missouth, Northeast, Plains, SouthCentral, Southeast, West, GreatLakes, California
+# These are the regions that make up the total US. Above code shows that the total numbers of the categories are the same
+
+# I will filter the data so that it only uses the lines for the above regions to avoid double counting.
+# no need to worry about the smaller areas as these are contained within the bigger regions
+# also i dont think it makes sense to look at regions that small
+# also by the looks of it the remaining cities arent an exhaustive list 
+
+# might be good to extract month from date as a categorical
+# proportions of 4046, 4225, 4770 may be better than absolutes, also props of bag size may be better than absolute numbers 
+```
+```{r}
+avocados %>% 
+  filter(region %in% c("Midsouth", 
+                       "Northeast", 
+                       "Plains", 
+                       "SouthCentral", 
+                       "Southeast", 
+                       "West", 
+                       "GreatLakes", 
+                       "California")) %>% 
+  mutate(a = round(small_bags + large_bags + x_large_bags, 2) - round(total_bags, 2)) %>% 
+  arrange(desc(a))
+
+avocados
+
+
+
+alias(lm(average_price ~ ., data = avocados))
+
+# for some reason the bag sizes dont properly add up to the total_bags
+# without the round they are different by like 0.000000000001
+# with the round there are a couple at either end out by +-1 
+# this means they dont show up in alias - I'm going to manual remove x larges bags as this can be derived from the other 3
+# x4046, x4225 and x 4770 dont add up to the total volume so can keep them all
+```
+
+```{r}
+avocados <- avocados %>% filter(region %in% c("Midsouth", 
+                       "Northeast", 
+                       "Plains", 
+                       "SouthCentral", 
+                       "Southeast", 
+                       "West", 
+                       "GreatLakes", 
+                       "California")) %>% 
+  mutate(month = as.factor(month(date)),
+         across(where(is.character), as.factor),
+         year = as.factor(year)) %>% 
+  dplyr::select(-x1, -date, -x_large_bags, -total_bags) 
+  
+```
+
+
+
+```{r}
+n_data <- nrow(avocados)
+
+test_index <- sample(1:n_data, size = n_data * 0.2)
+
+test <- avocados %>% 
+  slice(test_index)
+
+train <- avocados %>% 
+  slice(-test_index)
+```
+
+
+```{r}
+lm1 <- lm(average_price ~ total_volume, train)
+
+summary(lm1)
+plotModel(lm1)
+plot(lm1)
+
+# diagnostocs are mad i think this is because of the organic type
+
+
+
+```
+
+```{r}
+avocados_resid <- train %>% 
+  add_residuals(lm1) %>% 
+  dplyr::select(-average_price, -total_volume) %>% 
+  dplyr::select(resid, everything()) 
+
+
+avocados_resid %>% 
+  dplyr::select(resid, is.factor) %>% 
+  ggpairs() 
+
+# month, type and region all quite strong
+
+avocados_resid %>% 
+ dplyr::select(is.numeric) %>% 
+  ggpairs() 
+
+```
+
+```{r}
+train %>% 
+  ggplot(aes(x = x4046, y = average_price, colour = type)) +
+  geom_point() +
+  geom_smooth(method = "lm", se = FALSE)
+```
+
+```{r}
+# filter by type to check if the are correlated with different things
+
+avocados %>% 
+  filter(type == "conventional") %>% 
+  dplyr::select(average_price, is.factor) %>% 
+  ggpairs() 
+
+# month, type and region all quite strong
+
+avocados %>% 
+  filter(type == "conventional") %>%
+  dplyr::select(is.numeric) %>% 
+  ggpairs() 
+
+
+
+
+
+avocados %>% 
+  filter(type == "organic") %>% 
+  dplyr::select(average_price, is.factor) %>% 
+  ggpairs() 
+
+# month, type and region all quite strong
+
+avocados %>% 
+  filter(type == "organic") %>%
+  dplyr::select(is.numeric) %>% 
+  ggpairs() 
+
+# total volume and total bags strongest
+
+
+```
+
+
+
+```{r}
+# going to do type first
+
+lm2 <- lm(average_price ~ type, train)
+
+summary(lm2)
+plot(lm2)
+
+
+```
+
+
+```{r}
+avocados_resid <- train %>% 
+  add_residuals(lm2) %>% 
+  dplyr::select(-average_price, -type) %>% 
+  dplyr::select(resid, everything()) 
+
+
+avocados_resid %>% 
+  dplyr::select(resid, is.factor) %>% 
+  ggpairs() 
+
+# month, type and region all quite strong
+
+avocados_resid %>% 
+  dplyr::select(is.numeric) %>% 
+  ggpairs() 
+```
+
+
+
+```{r}
+lm3 <- lm(average_price ~ type + region, train)
+
+summary(lm3)
+plot(lm3)
+
+anova(lm2, lm3)
+
+```
+
+
+```{r}
+avocados_resid <- train %>% 
+  add_residuals(lm3) %>% 
+  dplyr::select(-average_price, -type, -region) %>% 
+  dplyr::select(resid, everything()) 
+
+
+avocados_resid %>% 
+  dplyr::select(resid, is.factor) %>% 
+  ggpairs() 
+
+# month, type and region all quite strong
+
+avocados_resid %>% 
+  dplyr::select(is.numeric) %>% 
+  ggpairs() 
+```
+
+
+```{r}
+lm4 <- lm(average_price ~ type + region + month, train)
+
+summary(lm4)
+plot(lm4)
+
+anova(lm3, lm4)
+
+# log helps diagnostics
+
+lm4 <- lm(log(average_price) ~ type + region + month, train)
+
+summary(lm4)
+plot(lm4)
+
+```
+
+```{r}
+avocados_resid <- train %>% 
+  add_residuals(lm4) %>% 
+  dplyr::select(-average_price, -type, -region, -month) %>% 
+  dplyr::select(resid, everything()) 
+
+
+avocados_resid %>% 
+  dplyr::select(resid, is.factor) %>% 
+  ggpairs() 
+
+# month, type and region all quite strong
+
+avocados_resid %>% 
+  dplyr::select(is.numeric) %>% 
+  ggpairs() 
+```
+
+
+
+```{r}
+
+lm5 <- lm(log(average_price) ~ type + region + month + year, train)
+
+summary(lm5)
+plot(lm5)
+
+anova(lm4, lm5)
+```
+
+```{r}
+avocados_resid <- train %>% 
+  add_residuals(lm5) %>% 
+  dplyr::select(-average_price, -type, -region, -month, -year) %>% 
+  dplyr::select(resid, everything()) 
+
+
+avocados_resid %>% 
+  dplyr::select(resid, is.factor) %>% 
+  ggpairs() 
+
+# month, type and region all quite strong
+
+avocados_resid %>% 
+  dplyr::select(is.numeric) %>% 
+  ggpairs() 
+```
+
+```{r}
+lm6 <- lm(log(average_price) ~ type + region + month + year + x4046, train)
+
+summary(lm6)
+plot(lm6)
+
+```
+
+```{r}
+avocados_resid <- train %>% 
+  add_residuals(lm6) %>% 
+  dplyr::select(-average_price, -type, -region, -month, -year, -x4046) %>% 
+  dplyr::select(resid, everything()) 
+
+
+avocados_resid %>% 
+  dplyr::select(is.numeric) %>% 
+  ggpairs() 
+```
+
+
+```{r}
+
+
+
+lm7 <- lm(log(average_price) ~ type + region + month + year + x4046 + total_volume, train)
+
+summary(lm7)
+plot(lm7)
+```
+
+```{r}
+avocados_resid <- train %>% 
+  add_residuals(lm7) %>% 
+  dplyr::select(-average_price, -type, -region, -month, -year, -x4046, -total_volume) %>% 
+  dplyr::select(resid, everything()) 
+
+
+avocados_resid %>% 
+  dplyr::select(is.numeric) %>% 
+  ggpairs() 
+```
+
+```{r}
+lm8 <- lm(log(average_price) ~ type + region + month + year + x4046 + total_volume + large_bags, train)
+lm8b <- lm(log(average_price)~1+type+year+region+month+total_volume+small_bags+large_bags, train)
+
+summary(lm8)
+plot(lm8)
+summary(lm8b)
+plot(lm8b)
+```
+
+```{r}
+avocados_resid <- train %>% 
+  add_residuals(lm8) %>% 
+  dplyr::select(-average_price, -type, -region, -month, -year, -x4046, -total_volume, -large_bags) %>% 
+  dplyr::select(resid, everything()) 
+
+
+avocados_resid %>% 
+  dplyr::select(is.numeric) %>% 
+  ggpairs() 
+```
+
+```{r}
+lm9 <- lm(log(average_price) ~ type + region + month + year + x4046 + total_volume + large_bags, train)
+
+summary(lm9)
+plot(lm9)
+```
+
+```{r}
+lm10 <- lm(log(average_price) ~ type + region + month + year + x4046 + total_volume + large_bags + type:total_volume, train)
+
+summary(lm10)
+plot(lm10)
+```
+
+
+
+```{r}
+lm11 <- lm(log(average_price) ~ type + region + month + year + x4046 + total_volume + large_bags + type:total_volume + type:region, train)
+
+lm12 <- lm(log(average_price) ~ type + region + month + year + x4046 + total_volume + large_bags + type:total_volume + type:region + type:year + region:total_volume, train)
+
+summary(lm11)
+plot(lm11)
+glance(lm11)
+glance(lm12)
+```
+
+
+```{r}
+train_rmse <- train %>% 
+  add_residuals(lm12) %>% 
+  mutate(sq_resid = resid^2) %>% 
+  summarise(mse = mean(sq_resid),
+            rmse = mse^0.5) %>% 
+  pull(rmse)
+
+
+train_rmse
+
+predictions_test <- test %>% 
+  add_predictions(lm12) %>% 
+  add_residuals(lm12) %>% 
+  dplyr::select(average_price, pred, resid) 
+  
+test_rsme <- predictions_test %>% 
+  mutate(sq_resid = resid^2) %>% 
+  summarise(mse = mean(sq_resid),
+            rmse = mse^0.5) %>% 
+  pull(rmse)
+
+test_rsme / train_rmse
+```
+
+
+```{r}
+cv_10_fold <- trainControl(
+  method = "cv",
+  number = 10,
+  savePredictions = TRUE
+)
+
+model2 <- train(log(average_price) ~ type + region + month + year + x4046 + total_volume + large_bags + type:total_volume, 
+               avocados, 
+               trControl = cv_10_fold, 
+               method = "lm")
+
+ model2$resample %>% 
+  summarise(av_r2 = mean(Rsquared),
+            av_rmse = mean(RMSE))
+```
+
+```{r}
+cv_10_fold <- trainControl(
+  method = "cv",
+  number = 10,
+  savePredictions = TRUE
+)
+
+model2 <- train(log(average_price) ~ type + region + month + year + x4046+ total_volume + large_bags + type:total_volume + type:region + type:year + region:total_volume, 
+               avocados, 
+               trControl = cv_10_fold, 
+               method = "lm")
+
+ model2$resample %>% 
+  summarise(av_r2 = mean(Rsquared),
+            av_rmse = mean(RMSE))
+```
+
+```{r}
+calc.relimp(lm9, type = "lmg", rela = TRUE)
+```
+
+
+
+
+AUTOMATED
+
+```{r}
+
+#### GARBAGE
+
+regsubset_forwards <- regsubsets(average_price ~ ., 
+                          data = avocados,
+                          nvmax = 40,
+                          method = "forward")
+
+
+summary(regsubset_forwards)
+
+plot(regsubset_forwards,
+     scale = "bic")
+
+sum_forward <- summary(regsubset_forwards)
+
+plot(sum_forward$bic,
+     type = "b")
+```
+
+```{r}
+# glmulti
+
+
+glmulti_fit <- glmulti(
+  log(average_price) ~ ., # model to fit, in this case, charges varies with everything
+  level = 2, # level = 2 means try pairwise interactions. level = 1 means main effects only
+  data = train, # data to use for fitting
+  minsize = 0, # min size of model to try, in number of predictors
+  maxsize = -1, # max size to try, set to -1 for unlimited
+  marginality = TRUE, # marginality true means include pairwise interaction only if both main effects present in model.  
+  method = "d", # method "d" means trial run, to get size of problem. Set to "h" for exhaustive search, or "g" for genetic algorithm
+  confsetsize = 10, # how many models should glmulti() return? Must be less than total size of problem
+  plotty = FALSE, # provide progress plots? Generally annoying.
+  report = TRUE, # provide progress reports? Generally useful.
+  fitfunction = lm, # use lm() as fit function. Can also use glm() for logistic regression.
+  crit = aic # criterion for selecting best models. 
+)
+```
+
+
+```{r}
+lm_multi <- lm(log(average_price)~1+type+year+region+month+total_volume+x4046+x4225+x4770+small_bags+large_bags+year:type+region:type+region:year+month:type+month:year+month:region+x4046:total_volume+x4225:total_volume+small_bags:total_volume+small_bags:x4046+small_bags:x4225+small_bags:x4770+large_bags:total_volume+large_bags:small_bags+type:total_volume+type:x4225+year:total_volume+year:x4046+year:x4770+year:large_bags+region:total_volume+region:x4225+region:large_bags+month:total_volume+month:x4770+month:small_bags, train) 
+
+summary(lm_multi)
+glance(lm_multi)
+```
+
+```{r}
+train_rmse <- train %>% 
+  add_residuals(lm_multi) %>% 
+  mutate(sq_resid = resid^2) %>% 
+  summarise(mse = mean(sq_resid),
+            rmse = mse^0.5) %>% 
+  pull(rmse)
+
+
+train_rmse
+
+predictions_test <- test %>% 
+  add_predictions(lm_multi) %>% 
+  add_residuals(lm_multi) %>% 
+  dplyr::select(average_price, pred, resid) 
+  
+test_rsme <- predictions_test %>% 
+  mutate(sq_resid = resid^2) %>% 
+  summarise(mse = mean(sq_resid),
+            rmse = mse^0.5) %>% 
+  pull(rmse)
+
+test_rsme / train_rmse
+
+# over fit? despite having a good bic
+```
+```{r}
+glmulti_fit <- glmulti(
+  log(average_price) ~ ., # model to fit, in this case, charges varies with everything
+  level = 2, # level = 2 means try pairwise interactions. level = 1 means main effects only
+  data = train, # data to use for fitting
+  minsize = 0, # min size of model to try, in number of predictors
+  maxsize = 10, # max size to try, set to -1 for unlimited
+  marginality = TRUE, # marginality true means include pairwise interaction only if both main effects present in model.  
+  method = "d", # method "d" means trial run, to get size of problem. Set to "h" for exhaustive search, or "g" for genetic algorithm
+  confsetsize = 1000, # how many models should glmulti() return? Must be less than total size of problem
+  plotty = FALSE, # provide progress plots? Generally annoying.
+  report = TRUE, # provide progress reports? Generally useful.
+  fitfunction = lm, # use lm() as fit function. Can also use glm() for logistic regression.
+  crit = aic # criterion for selecting best models. 
+)
+```
+
+
+```{r}
+train = train %>% 
+  select(average_price, region, type, year, month, total_volume, large_bags)
+
+
+```
+
+
+
+
+
+```{r}
+lm_multi <- lm(log(average_price)~ 1 + region + type + year + month + total_volume + large_bags + year:type + month:year + region:total_volume + type:total_volume, train)
+
+summary(lm_multi)
+glance(lm_multi)
+plot(lm_multi)
+
+lm12 <- lm(log(average_price) ~ type + region + month + year + x4046 + total_volume + large_bags + type:total_volume + type:region + type:year + region:total_volume, train)
+summary(lm12)
+glance(lm12)
+plot(lm12)
+```
+
