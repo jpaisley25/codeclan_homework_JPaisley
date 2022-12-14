@@ -599,3 +599,52 @@ glance(lm12)
 plot(lm12)
 ```
 
+
+
+```{r}
+avocados_1 <- avocados %>% 
+  mutate(across(x4046:large_bags, ~.x / total_volume)) 
+```
+
+
+```{r}
+avocados_1%>% 
+  dplyr::select(average_price, is.factor) %>% 
+  ggpairs() 
+
+# month, type and region all quite strong
+
+avocados_1 %>% 
+  dplyr::select(is.numeric) %>% 
+  ggpairs() 
+```
+
+
+
+```{r}
+lm4 <- lm(average_price ~ type + region + month, train)
+
+summary(lm4)
+plot(lm4)
+```
+
+
+```{r}
+avocados_resid <- train %>% 
+  add_residuals(lm5) %>% 
+  dplyr::select(-average_price, -type, -region, -month) %>% 
+  dplyr::select(resid, everything()) 
+
+
+avocados_resid %>% 
+  dplyr::select(resid, is.factor) %>% 
+  ggpairs() 
+
+# month, type and region all quite strong
+
+avocados_resid %>% 
+  dplyr::select(is.numeric) %>% 
+  ggpairs() 
+
+```
+
