@@ -1,0 +1,90 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+```{r}
+library(tidyverse)
+library(broom)
+library(janitor)
+library(factoextra)
+```
+
+```{r}
+customers <- read_csv(here::here("mall_customers.csv")) %>% clean_names()
+```
+You have been provided some customer data from a shopping centre. Do some exploratory analysis on the data. Comment on findings.
+
+We are interested in creating a marketing campaign to target customers based on their spending score and annual income. Perform a k-means clustering to find if there are meaningful clusters in the data to target the customers.
+
+Perform k-means clustering and chose a value of k.
+
+Visualise the clustering for your chosen value of k.
+
+Do you think the clustering seems a good fit for this data?
+
+Comment on the attributes on one or two of the clusters (maybe even give them a label if you like - like in section 4.1 of the ‘Segmentation & clustering intro’ lesson).
+
+
+```{r}
+customers_subset <- customers %>% 
+  select(annual_income_k, spending_score_1_100)
+
+customers_subset %>% 
+  ggplot(aes(x = annual_income_k, y = spending_score_1_100)) +
+  geom_point()
+
+# looks like there may be 5 clusters...
+```
+
+```{r}
+customers_scaled <- customers_subset %>% 
+  mutate(across(everything(), scale))
+```
+
+```{r}
+fviz_nbclust(customers_scaled,
+             kmeans,
+             method = "wss",
+             nstart = 25,
+             k.max = 25)
+
+
+fviz_nbclust(customers_scaled,
+             kmeans,
+             method = "silhouette",
+             nstart = 25,
+             k.max = 25,
+             iter.max = 20)
+
+fviz_nbclust(customers_scaled,
+             kmeans,
+             method = "gap",
+             nstart = 25,
+             iter.max = 20)
+
+# lets go with five seems good on elbow and silhoutte
+```
+
+```{r}
+
+clusters <- kmeans(customers_scaled,
+       centers = 5,
+       nstart = 25)
+
+```
+
+```{r}
+customers_subset %>% 
+  mutate(cluster = clusters$cluster) %>% 
+  ggplot(aes(x = annual_income_k, y = spending_score_1_100, colour = as.factor(cluster))) +
+  geom_point()
+```
+
+
+five groups
+- low income - low spending score - on a budget
+- low income - high spending score - reckless
+- mid income - mid spending score - Goldilocks
+- high income - low spending score - tight
+- high income - high spending score - extravagant 
