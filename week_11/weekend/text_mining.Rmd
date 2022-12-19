@@ -1,0 +1,116 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+```{r}
+library(tidytext)
+library(tidyverse)
+library(janeaustenr)
+library(purrr)
+library(textdata)
+library(ggwordcloud)
+library(text2vec)
+```
+
+```{r}
+titles <- c("Pride and Prejudice", "Sense and Sensibility")
+
+books <- list(prideprejudice, sensesensibility)
+```
+
+```{r}
+books <- purrr::map_chr(books,paste,collapse = " ")
+str(books)
+```
+
+```{r}
+all_book_df <- tibble(
+  title = titles,
+  text = books
+) %>% 
+  unnest_tokens(word, text)
+
+all_book_df
+```
+
+
+```{r}
+top_10_words <- function(df){
+  df %>% 
+  count(word) %>% 
+  slice_max(n, n=10)
+}
+```
+
+
+```{r}
+top_10_all <- all_book_df %>% 
+  top_10_words()
+top_10_all
+
+top_10_no_stop <- all_book_df %>% 
+  anti_join(stop_words) %>% 
+  top_10_words()
+top_10_no_stop
+
+top_10_sentiment <- all_book_df %>% 
+  inner_join(get_sentiments("afinn")) %>%
+  filter(word != "miss") %>% # miss in the context of these books is likely a stop word
+  top_10_words()
+top_10_sentiment
+
+```
+```{r}
+top_10_words_2 <- function(df){
+  df %>% 
+  group_by(title) %>% 
+  count(word) %>% 
+  slice_max(n, n=10)
+}
+```
+
+
+```{r}
+top_10_all_2 <- all_book_df %>%
+  top_10_words_2()
+top_10_all_2
+
+top_10_no_stop_2 <- all_book_df %>% 
+  anti_join(stop_words) %>% 
+  top_10_words_2()
+top_10_no_stop_2
+
+top_10_sentiment_2 <- all_book_df %>% 
+  inner_join(get_sentiments("afinn")) %>%
+  filter(word != "miss") %>% # miss in the context of these books is likely a stop word
+  top_10_words_2()
+top_10_sentiment_2
+```
+
+
+```{r}
+all_books_tf_idf <- all_book_df %>% 
+  count(word, title) %>% 
+  bind_tf_idf(word,title,n) %>% 
+  arrange(desc(tf_idf))
+
+most_unique_words <- all_books_tf_idf %>% 
+  group_by(title) %>% 
+  slice_max(tf_idf, n = 10)
+most_unique_words
+
+```
+
+```{r}
+
+all_books_tf_idf %>% 
+  inner_join(top_10_sentiment, by = c("word")) %>% 
+  ggplot(aes(x = word, y = n.x, fill = title))+
+  geom_col(position = "dodge") 
+  
+
+
+
+```
+
