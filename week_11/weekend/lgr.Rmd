@@ -1,0 +1,178 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+```{r}
+library(tidyverse)
+library(janitor)
+library(GGally)
+library(modelr)
+library(pROC)
+library(glmulti)
+```
+
+```{r}
+orange_juice <- read_csv(here::here("data/orange_juice.csv")) %>% clean_names() %>% drop_na()
+```
+
+
+
+```{r}
+orange_juice_clean <- orange_juice %>%
+  mutate(purchase_ch = if_else(purchase == "CH", 1, 0)) %>% 
+  select(-price_ch, -price_mm, -list_price_diff, -store, -store7, -price_diff, -pct_disc_mm, -pct_disc_ch, -purchase) %>% 
+  mutate(across(c(store_id, special_ch, special_mm), as.factor)) 
+
+alias(glm(purchase_ch ~ ., data = orange_juice_clean))
+
+# removing derived values. 
+```
+
+```{r}
+# week_of_purchase has to be a factor as it is unlikely that any trend in this would be linear. at present the factors would mean nothing. If you converted them into months it would be better but there is no way to know if week 227 is jan and 278 is dec so i am going to omit
+
+orange_juice_clean <- orange_juice_clean %>% 
+  select(-weekof_purchase)
+```
+
+```{r}
+n_data <- nrow(orange_juice_clean)
+
+test_index <- sample(1:n_data, size = n_data * 0.2)
+
+test <- orange_juice_clean %>%  slice(test_index)
+
+train <- orange_juice_clean %>% slice(-test_index)
+```
+
+
+
+```{r}
+glmulti_search_all_mains <- glmulti(
+  purchase_ch ~ ., 
+  data = train,
+  level = 1,               
+  method = "h",            
+  crit = "bic",            
+  confsetsize = 10,        
+  plotty = F, 
+  report = T,              
+  fitfunction = "glm",    
+  family = binomial(link = "logit")) 
+summary(glmulti_search_all_mains)
+
+# best model - purchase_ch ~ loyal_ch + sale_price_mm + sale_price_ch
+```
+
+```{r}
+# interactions
+
+glmulti_search_previous_mains_one_pair <- glmulti(
+  purchase_ch ~ loyal_ch + sale_price_mm + sale_price_ch, 
+  data = train,
+  level = 2,               
+  method = "h",            
+  crit = "bic",            
+  confsetsize = 10,        
+  marginality = TRUE,      
+  minsize = 4,            
+  maxsize = 6,             
+  plotty = F, 
+  report = T,              
+  fitfunction = "glm",     
+  family = binomial(link = "logit")) 
+
+summary(glmulti_search_previous_mains_one_pair)
+
+# best model with interactions - purchase_ch ~ 1 + loyal_ch + sale_price_mm + sale_price_ch + sale_price_ch:sale_price_mm
+```
+
+```{r}
+glmulti_ga_search_with_pairs_aic <- glmulti(
+  purchase_ch ~ .,
+  data = train,
+  level = 2,               
+  method = "g",            
+  crit = "aic",            
+  confsetsize = 10,       
+  marginality = TRUE,      
+  plotty = F, 
+  report = T,             
+  fitfunction = "glm",     
+  family = binomial(link = "logit")) 
+
+summary(glmulti_ga_search_with_pairs_aic)
+
+# "purchase_ch ~ 1 + store_id + special_ch + special_mm + disc_mm + loyal_ch + sale_price_mm + sale_price_ch + special_mm:special_ch + store_id:disc_mm + store_id:sale_price_mm + special_ch:sale_price_ch"
+
+# best model all and all ints 
+```
+
+
+```{r}
+lg_model_1 <- glm(purchase_ch ~ loyal_ch + sale_price_mm + sale_price_ch,
+                  family = binomial(link = "logit"),
+                  data = train)
+
+summary(lg_model_1)
+
+lg_model_2 <- glm(purchase_ch ~ loyal_ch + sale_price_mm + sale_price_ch + sale_price_ch:sale_price_mm,
+                  family = binomial(link = "logit"),
+                  data = train)
+
+summary(lg_model_2)
+
+lg_model_3 <- glm(purchase_ch ~ store_id + special_ch + special_mm + disc_mm + loyal_ch + sale_price_mm + sale_price_ch + special_mm:special_ch + store_id:disc_mm + store_id:sale_price_mm + special_ch:sale_price_ch,
+                  family = binomial(link = "logit"),
+                  data = train)
+
+summary(lg_model_3)
+```
+
+```{r}
+predict_log_1 <- test %>% 
+  add_predictions(lg_model_1, type = "response")
+
+predict_log_1
+
+predict_log_2 <- test %>% 
+  add_predictions(lg_model_2, type = "response")
+
+predict_log_2
+
+predict_log_3 <- test %>% 
+  add_predictions(lg_model_3, type = "response")
+
+predict_log_3
+
+```
+
+```{r}
+roc_obj_1 <- predict_log_1 %>% 
+  roc(response = purchase_ch,
+      predictor = pred)
+
+roc_obj_2 <- predict_log_2 %>% 
+  roc(response = purchase_ch,
+      predictor = pred)
+
+roc_obj_3 <- predict_log_3 %>% 
+  roc(response = purchase_ch,
+      predictor = pred)
+
+roc_curve <- ggroc(data = list(roc_obj_1, roc_obj_2, roc_obj_3), legacy.axes = TRUE) +
+  coord_fixed() +
+  labs(y = "sensitivity (TRR)",
+       x = "1 - sensititvity(1 -TNR)")
+
+roc_curve
+
+auc(roc_obj_1)
+auc(roc_obj_2)
+auc(roc_obj_3)
+
+# not much differnce between models. 1 is the best which suggest 2 and 3 might be slightly overfit
+
+```
+
